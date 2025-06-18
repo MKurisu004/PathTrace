@@ -27,6 +27,11 @@ public:
     std::vector<Vector3f> n;
     bool intersect(const Ray &r, Hit &h, float tmin) override;
 
+    Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const override {
+        pdfA = 0.0f;
+        return Vector3f::ZERO;
+    }
+
 private:
 
     // Normal can be used for light estimation

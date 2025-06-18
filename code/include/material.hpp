@@ -72,6 +72,11 @@ public:
         return Vector3f(F0_scalar, F0_scalar, F0_scalar);
     }
 
+    // check if the material is a light source
+    bool isLight() const{
+        return emission != Vector3f::ZERO;
+    }
+
     Vector3f phongShade(const Ray &ray, const Hit &hit,
                    const Vector3f &dirToLight, const Vector3f &lightColor) {
         Vector3f N = hit.getNormal();
@@ -109,6 +114,59 @@ public:
             return fr;
         }
         return Vector3f::ZERO; // 如果没有匹配的类型，返回零向量
+    }
+
+    inline float pdfBsdf(const Vector3f &wo, const Vector3f &wi, const Vector3f &N) const {
+        if (type.x() == 1.0f) {
+            return std::max(0.0f, Vector3f::dot(wi, N)) / M_PI;
+        } else if (type.y() == 1.0f || type.z() == 1.0f){
+            return 1.0f;
+        } else {
+            float kd = type.x();
+            float ks = type.y();
+
+            float pdf_diff = std::max(0.0f, Vector3f::dot(wi, N)) / M_PI;
+
+            Vector3f h = (wo + wi).normalized();
+
+            float D  = D_GGX(h,   N, alpha);
+            float cos_i = std::max(0.0f, Vector3f::dot(h, N));
+            float odoth = std::abs(Vector3f::dot(wo, h));
+            float pdf_spec = D  * cos_i / (4.0f * std::max(1e-6f, odoth));
+
+            return kd * pdf_diff + ks * pdf_spec;
+        }
+    }
+
+    inline float sampleBsdf(const Vector3f &wo, const Vector3f &N, Vector3f &outDir){
+        if (type.x() == 1.0f) {
+            outDir = diffuse(wo, N);
+            return std::max(0.0f, Vector3f::dot(N, outDir)) / M_PI;
+        } else if (type.y() == 1.0f) {
+            outDir = reflect(wo, N);
+            return 1.0f;
+        } else if (type.z() == 1.0f){
+            outDir = refract(wo, N, refractiveIndex);
+            return 1.0f;
+        } else {
+            float kd = type.x();
+            float ks = type.y();
+            float r = rnd();
+            if (r < kd) {
+                outDir = diffuse(wo, N);
+                return kd * (std::max(0.0f, Vector3f::dot(N, outDir)) / M_PI);
+            } else {
+                outDir = sampleGGX(-wo, N, alpha);
+                Vector3f h = (wo + outDir).normalized();
+
+                float D  = D_GGX(h,   N, alpha);
+                float cos_i = std::max(0.0f, Vector3f::dot(h, N));
+                float odoth = std::abs(Vector3f::dot(wo, h));
+                float pdf_spec = D  * cos_i / (4.0f * std::max(1e-6f, odoth));
+
+                return ks * pdf_spec;
+            }
+        }
     }
 
 protected:

@@ -31,8 +31,13 @@ public:
         if(t_candidate < tmin || t_candidate > h.getT()){
             return false;
         }
-        h.set(t_candidate, material, normal);
+        h.set(t_candidate, material, normal, this);
         return true;
+    }
+
+    Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const override {
+        pdfA = 0.0f;
+        return Vector3f::ZERO;
     }
 
 protected:

@@ -37,11 +37,25 @@ public:
     }
 
     void addObject(int index, Object3D *obj) {
-        objList.insert(objList.begin() + index, obj);
+        assert(index >= 0 && index < (int)objList.size());
+        objList[index] = obj;
     }  
 
     int getGroupSize() {
         return objList.size();
+    }
+
+    Object3D *getObject(int index) {
+        if (index < 0 || index >= objList.size()) {
+            std::cerr << "Index out of bounds in Group::getObject" << std::endl;
+            return nullptr;
+        }
+        return objList[index];
+    }
+    
+    Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const override {
+        pdfA = 0.0f;
+        return Vector3f::ZERO;
     }
 
 private:

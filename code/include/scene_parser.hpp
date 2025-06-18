@@ -2,6 +2,7 @@
 #define SCENE_PARSER_H
 
 #include <cassert>
+#include <vector>
 #include <vecmath.h>
 
 class Camera;
@@ -14,6 +15,7 @@ class Plane;
 class Triangle;
 class Transform;
 class Mesh;
+class Rectangle;
 
 #define MAX_PARSER_TOKEN_LENGTH 1024
 
@@ -55,6 +57,14 @@ public:
         return group;
     }
 
+    int getNumEmissiveObjects() const { return (int)emissiveObjects.size(); }
+
+    Object3D* getEmissiveObject(int i) const {
+        assert(i >= 0 && i < (int)emissiveObjects.size());
+        return emissiveObjects[i];
+    }
+
+
 private:
 
     void parseFile();
@@ -71,6 +81,7 @@ private:
     Sphere *parseSphere();
     Plane *parsePlane();
     Triangle *parseTriangle();
+    Rectangle *parseRectangle();
     Mesh *parseTriangleMesh();
     Transform *parseTransform();
 
@@ -90,6 +101,7 @@ private:
     Material **materials;
     Material *current_material;
     Group *group;
+    std::vector<Object3D*> emissiveObjects;
 };
 
 #endif // SCENE_PARSER_H

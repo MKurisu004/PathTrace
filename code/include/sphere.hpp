@@ -42,8 +42,37 @@ public:
 
         Vector3f hitPoint = r.pointAtParameter(t_candidate);
         Vector3f normal = (hitPoint - center) / radius;
-        h.set(t_candidate, material, normal);
+        h.set(t_candidate, material, normal, this);
         return true;
+    }
+
+    Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const override {
+        // 1) 在单位球面上做面积采样
+        float u1 = rnd();             // ∈ [0,1)
+        float u2 = rnd();             // ∈ [0,1)
+        float z  = 1.0f - 2.0f * u1;   // cosθ, 均匀面积分布
+        float r  = std::sqrt(std::max(0.0f, 1.0f - z*z));
+        float phi = 2.0f * M_PI * u2;
+        // 球面方向向量
+        Vector3f dir(r * std::cos(phi),
+                    r * std::sin(phi),
+                    z);
+
+        // 2) 在世界坐标系下的采样点
+        Vector3f x = center + dir * radius;
+
+        // 3) 输出方向 / 法线
+        outDir = (x - p).normalized();
+        xNormal = dir;  // 采样点处的表面法线（已单位化）
+
+        // 如果采样点法线和出射方向同向，则翻转
+        if (Vector3f::dot(xNormal, outDir) > 0.0f)
+            xNormal = -xNormal;
+
+        // 4) 面积 PDF
+        pdfA = 1.0f / (4.0f * M_PI * radius * radius);
+
+        return x;
     }
 
 protected:

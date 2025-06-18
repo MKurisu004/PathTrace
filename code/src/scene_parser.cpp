@@ -15,6 +15,7 @@
 #include "plane.hpp"
 #include "triangle.hpp"
 #include "transform.hpp"
+#include "rectangle.hpp" 
 
 #define DegreesToRadians(x) ((M_PI * x) / 180.0f)
 
@@ -29,6 +30,7 @@ SceneParser::SceneParser(const char *filename) {
     num_materials = 0;
     materials = nullptr;
     current_material = nullptr;
+    emissiveObjects.clear();
 
     // parse the file
     assert(filename != nullptr);
@@ -50,6 +52,27 @@ SceneParser::SceneParser(const char *filename) {
 
     if (num_lights == 0) {
         printf("WARNING:    No lights specified\n");
+    }
+}
+
+static void collectEmissives(Object3D *obj, std::vector<Object3D*> &out) {
+    // 如果这是一个 Group，就递归其子节点
+    if(obj == nullptr) {
+        return;
+    }
+
+    Group *g = dynamic_cast<Group*>(obj);
+    if (g) {
+        for (int i = 0; i < g->getGroupSize(); ++i) {
+            collectEmissives(g->getObject(i), out);
+        }
+    }
+    else {
+        // 不是 group，那么它应该有材质指针
+        Material *m = obj->getMaterial();
+        if (m && m->getEmission().length() > 0.0f) {
+            out.push_back(obj);
+        }
     }
 }
 
@@ -78,6 +101,7 @@ void SceneParser::parseFile() {
     // background color and a group of objects
     // (we add lights and other things in future assignments)
     //
+    std::cout << "Parsing scene file..." << std::endl;
     char token[MAX_PARSER_TOKEN_LENGTH];
     while (getToken(token)) {
         if (!strcmp(token, "PerspectiveCamera")) {
@@ -94,6 +118,12 @@ void SceneParser::parseFile() {
             printf("Unknown token in parseFile: '%s'\n", token);
             exit(0);
         }
+    }
+    std::cout<< "Finished parsing scene file.\n";
+
+    collectEmissives(group, emissiveObjects);
+    if (emissiveObjects.empty()) {
+        std::cout << "WARNING: no emissive geometry found in scene\n";
     }
 }
 
@@ -325,6 +355,8 @@ Object3D *SceneParser::parseObject(char token[MAX_PARSER_TOKEN_LENGTH]) {
         answer = (Object3D *) parseTriangleMesh();
     } else if (!strcmp(token, "Transform")) {
         answer = (Object3D *) parseTransform();
+    } else if (!strcmp(token, "Rectangle")){
+        answer = (Object3D *) parseRectangle();
     } else {
         printf("Unknown token in parseObject: '%s'\n", token);
         exit(0);
@@ -413,6 +445,31 @@ Plane *SceneParser::parsePlane() {
     assert (!strcmp(token, "}"));
     assert (current_material != nullptr);
     return new Plane(normal, offset, current_material);
+}
+
+Rectangle *SceneParser::parseRectangle() {
+    char token[MAX_PARSER_TOKEN_LENGTH];
+    getToken(token);
+    assert (!strcmp(token, "{"));
+    getToken(token);
+    assert (!strcmp(token, "origin"));
+    Vector3f origin = readVector3f();
+    getToken(token);
+    assert (!strcmp(token, "U"));
+    Vector3f U = readVector3f();
+    getToken(token);
+    assert (!strcmp(token, "V"));
+    Vector3f V = readVector3f();
+    getToken(token);
+    assert (!strcmp(token, "LU"));
+    float LU = readFloat();
+    getToken(token);
+    assert (!strcmp(token, "LV"));
+    float LV = readFloat();
+    getToken(token);
+    assert (!strcmp(token, "}"));
+    assert (current_material != nullptr);
+    return new Rectangle(origin, U, LU, V, LV, current_material);
 }
 
 

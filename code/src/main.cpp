@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
                 Vector3f finalColor(0,0,0);
                 for (int i = 0; i < PT_ITERATIONS; ++i) {
                     Ray camRay = camera->generateRay(Vector2f(x + rnd(), y + rnd()));
-                    finalColor += PathTraceWithNEE(sceneParser, camRay, 0);
+                    finalColor += PathTraceMIS(sceneParser, camRay, 0);
                 }
                 image.SetPixel(x, y, finalColor / PT_ITERATIONS);
 
