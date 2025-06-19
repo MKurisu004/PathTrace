@@ -14,6 +14,14 @@ public:
     virtual void getIllumination(const Vector3f &p, Vector3f &dir, Vector3f &col) const = 0;
     virtual Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const = 0;
     virtual Vector3f getEmission() const = 0;
+    virtual Vector3f getPosition() const = 0;
+
+    Vector3f getType(){
+        return type;
+    }
+
+protected:
+    Vector3f type;
 };
 
 
@@ -24,6 +32,7 @@ public:
     DirectionalLight(const Vector3f &d, const Vector3f &c) {
         direction = d.normalized();
         color = c;
+        type = Vector3f(1, 0, 0);
     }
 
     ~DirectionalLight() override = default;
@@ -35,6 +44,10 @@ public:
         // direction of the directional light source
         dir = -direction;
         col = color;
+    }
+
+    Vector3f getPosition() const override{
+        return -direction * 1e30f;
     }
 
     Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const override {
@@ -62,6 +75,7 @@ public:
     PointLight(const Vector3f &p, const Vector3f &c) {
         position = p;
         color = c;
+        type = Vector3f(0, 1, 0);
     }
 
     ~PointLight() override = default;
@@ -73,6 +87,11 @@ public:
         dir = dir / dir.length();
         col = color;
     }
+
+    Vector3f getPosition() const override{
+        return position;
+    }
+
     
     Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const override {
         outDir = (position - p).normalized();
@@ -105,6 +124,7 @@ public:
          emission(emission)
     {
         // 预计算面积
+        type = Vector3f(0, 0, 1);
         area = (2*LU) * (2*LV) * Vector3f::cross(U, V).normalized().length();
     }
 
@@ -118,6 +138,11 @@ public:
     Vector3f getEmission() const override {
         return emission;
     }
+
+    Vector3f getPosition() const override{
+        return origin;
+    }
+
 
     // NEE 专用：均匀采样一个面上的点 x
     Vector3f sampleDirect(const Vector3f &p,

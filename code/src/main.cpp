@@ -29,12 +29,13 @@ int main(int argc, char *argv[]) {
         std::cout << "Argument " << argNum << " is: " << argv[argNum] << std::endl;
     }
 
-    if (argc != 3) {
-        cout << "Usage: ./bin/PA1 <input scene file> <output bmp file>" << endl;
+    if (argc < 3 || argc > 4) {
+        cout << "Usage: ./PA1 <scene.txt> <out.bmp> [RT|PT|NEE|MIS|CT]\n";
         return 1;
     }
-    string inputFile = argv[1];
-    string outputFile = argv[2];  // only bmp is allowed.
+    string inputFile  = argv[1];
+    string outputFile = argv[2];
+    string mode       = (argc==4 ? argv[3] : "PT");
 
     SceneParser sceneParser(inputFile.c_str());
     Camera *camera = sceneParser.getCamera();
@@ -61,20 +62,20 @@ int main(int argc, char *argv[]) {
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
                 Vector3f finalColor(0,0,0);
-                for (int i = 0; i < PT_ITERATIONS; ++i) {
+
+                int iterations = (mode == "RT") ? RT_ITERATIONS : PT_ITERATIONS;
+
+                
+                for (int i = 0; i < iterations; ++i) {
                     Ray camRay = camera->generateRay(Vector2f(x + rnd(), y + rnd()));
-                    finalColor += PathTraceMIS(sceneParser, camRay, 0);
+                    if (mode == "RT")       finalColor += RayTrace(sceneParser, camRay, 0, 1.0f);
+                    else if (mode == "PT")  finalColor += PathTrace(sceneParser, camRay, 0);
+                    else if (mode == "NEE") finalColor += PathTraceNEE(sceneParser, camRay, 0);
+                    else if (mode == "MIS") finalColor += PathTraceMIS(sceneParser, camRay, 0);
+                    else if (mode == "CT")  finalColor += PathTrace(sceneParser, camRay, 0);
                 }
-                image.SetPixel(x, y, finalColor / PT_ITERATIONS);
-
-                /*
-                for(int i = 0; i < RT_ITERATIONS; i++){
-                    Ray camRay = camera->generateRay(Vector2f(x, y));
-                    finalColor += RayTrace(sceneParser, camRay, 0, 1);
-                }
-
-                image.SetPixel(x, y, finalColor / RT_ITERATIONS);
-                */
+                image.SetPixel(x, y, finalColor / iterations);
+            
             }
 
             #pragma omp critical

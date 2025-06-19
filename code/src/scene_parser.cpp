@@ -305,6 +305,7 @@ Material *SceneParser::parseMaterial() {
     Vector3f type(1, 0, 0);         // 默认类型：漫反射
     float refractiveIndex = 1.0f;   // 默认无折射
     float alpha = 0.0f;             // 默认粗糙度为零
+    float R0 = 0.0f;
 
     getToken(token);
     assert (!strcmp(token, "{"));
@@ -326,7 +327,10 @@ Material *SceneParser::parseMaterial() {
             type = readVector3f();
         } else if (strcmp(token, "refractiveIndex") == 0) {
             refractiveIndex = readFloat();
-        } else if (strcmp(token, "texture") == 0) {
+        } else if (strcmp(token, "R0") == 0){
+            R0 = readFloat();
+        }
+         else if (strcmp(token, "texture") == 0) {
             // Optional: read in texture and draw it.
             getToken(filename);
         } else {
@@ -334,7 +338,7 @@ Material *SceneParser::parseMaterial() {
             break;
         }
     }
-    auto *answer = new Material(color, specularColor, shininess, emission, alpha, type, refractiveIndex);
+    auto *answer = new Material(color, specularColor, shininess, emission, alpha, type, refractiveIndex, R0);
     return answer;
 }
 

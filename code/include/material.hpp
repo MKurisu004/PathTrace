@@ -16,8 +16,10 @@ class Material {
 public:
 
     explicit Material(const Vector3f &c, const Vector3f &s_color = Vector3f::ZERO, float s = 0, 
-        const Vector3f &emission = Vector3f::ZERO, float alpha = 0, const Vector3f &type_ = Vector3f(1, 0, 0), float refractiveIndex_ = 1.0f) : 
-            color(c), specularColor(s_color), shininess(s), emission(emission), alpha(alpha), type(type_), refractiveIndex(refractiveIndex_) {
+        const Vector3f &emission = Vector3f::ZERO, float alpha = 0, const Vector3f &type_ = Vector3f(1, 0, 0), 
+        float refractiveIndex_ = 1.0f, float R0 = 0.0f) : 
+            color(c), specularColor(s_color), shininess(s), emission(emission), alpha(alpha), type(type_), 
+            refractiveIndex(refractiveIndex_), R0(R0){
 
     }
 
@@ -67,9 +69,13 @@ public:
 
     // get F0 for Fresnel equation
     Vector3f getF0() const {
-        float F0_scalar = (1.0f - refractiveIndex) / (1.0f + refractiveIndex);
-        F0_scalar = F0_scalar * F0_scalar;
-        return Vector3f(F0_scalar, F0_scalar, F0_scalar);
+        if(type.x() == 1.0f){
+            float F0_scalar = (1.0f - refractiveIndex) / (1.0f + refractiveIndex);
+            F0_scalar = F0_scalar * F0_scalar;
+            return Vector3f(F0_scalar, F0_scalar, F0_scalar);
+        } else {
+            return R0;
+        }
     }
 
     // check if the material is a light source
@@ -88,33 +94,23 @@ public:
         return shaded;
     }
 
-    inline Vector3f evalNeeBRDF(const Vector3f &wo, const Vector3f &wi, const Vector3f &N) const {
-        if (type.x() == 1){         // Diffuse material
-            return color * (1.0f / M_PI);
-        } else if (type.y() == 1){  // Specular material
-            return Vector3f::ZERO;
-        } else if (type.z() == 1){  // Refractive material
-             return Vector3f::ZERO;
-        } else if (type.z() == 0){  // Cook-Torrance material
-            float kd = type.x();
-            float ks = type.y();
-
-            Vector3f h = (wi + wo).normalized();
-            float cos_i = std::max(0.0f, Vector3f::dot(N, wi));
-            float cos_o = std::max(0.0f, Vector3f::dot(N, wo));
-
-            Vector3f diffuseBRDF = color / M_PI;
-
-            float D = D_GGX(h, N, alpha);
-            Vector3f F = fresnelSchlick(std::max(0.0f, Vector3f::dot(wo, h)), this->getF0());
-            float G = G_Smith(wo, wi, N, alpha);
-            Vector3f specularBRDF = (D * F * G) / (4 * cos_i * cos_o + 1e-6f);
-
-            Vector3f fr = kd * diffuseBRDF + ks * specularBRDF;
-            return fr;
-        }
-        return Vector3f::ZERO; // 如果没有匹配的类型，返回零向量
+    inline Vector3f evalNeeBRDF(const Vector3f &wo,
+                            const Vector3f &wi,
+                            const Vector3f &N) const {
+    // 漫反射：任意 wi 都有反射
+    if (type.x() == 1) {
+        return color * (1.0f / M_PI);
     }
+    // 镜面
+    if (type.y() == 1) {
+        return Vector3f::ZERO;
+    }
+    // 折射
+    if (type.z() == 1) {
+        return Vector3f::ZERO;
+    }
+    return Vector3f::ZERO;
+}
 
     inline float pdfBsdf(const Vector3f &wo, const Vector3f &wi, const Vector3f &N) const {
         if (type.x() == 1.0f) {
@@ -174,9 +170,10 @@ protected:
     Vector3f specularColor;     // 镜面反射颜色
     float shininess;            // 高光指数
     float refractiveIndex;      // 折射率
-    Vector3f emission;        // 发光系数
-    float alpha;              // 用于 Cook-Torrance 模型的粗糙度
+    Vector3f emission;          // 发光系数
+    float alpha;                // 用于 Cook-Torrance 模型的粗糙度
     Vector3f type;              // 材质类型
+    float R0;                   // 正入射反射系数
 
     float relu(float x){
         return std::max((float)0, x);

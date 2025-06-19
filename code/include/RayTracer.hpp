@@ -29,22 +29,28 @@ inline Vector3f RayTrace(const SceneParser &scene, const Ray &ray, int depth, fl
 
     Vector3f result(0,0,0);
 
-    // 局部光照 
-    if (matType.x() > 0.5f) {
-        // 直接光：Phong + 阴影
+    // 直接光：Phong + 阴影
+    if (matType.x() > 0.5){
         for (int i = 0; i < scene.getNumLights(); ++i) {
             Vector3f L, lightCol;
             scene.getLight(i)->getIllumination(P, L, lightCol);
 
-            // 阴影检测
-            Ray shadowRay(P + N * kEpsilon, L.normalized());
+            float lightDist = (scene.getLight(i)->getPosition() - P).length();
+            Ray shadowRay(P + N*kEpsilon, L);
             Hit shadowHit;
-            if (scene.getGroup()->intersect(shadowRay, shadowHit, kEpsilon))
-                continue;
 
+            if(scene.getLight(i)->getType() == Vector3f(0, 1, 0)){
+                if (scene.getGroup()->intersect(shadowRay, shadowHit, kEpsilon) && shadowHit.getT() < lightDist)
+                    continue; 
+            } else if (scene.getLight(i)->getType() == Vector3f(1, 0 , 0)){
+                
+            }
+            
+            // 否则不算阴影，继续累加光照
             result += m->phongShade(ray, hit, L, lightCol);
         }
     }
+    
 
     // 完美镜面反射 
     if (matType.y() > 0.5f) {
@@ -57,24 +63,31 @@ inline Vector3f RayTrace(const SceneParser &scene, const Ray &ray, int depth, fl
     if (matType.z() > 0.5f) {
         float ior = m->getRefractiveIndex();
         float cosI = -Vector3f::dot(N, I);
+        Vector3f n = (cosI > 0 ? N : -N);
+        float eta = (cosI > 0 ? 1.0f/ior : ior);
+        cosI = std::fabs(cosI);
+        float k = 1 - eta*eta*(1 - cosI*cosI);
 
-        // 判断折射方向
-        float eta = (cosI > 0 ? 1.0f / ior : ior);
-        Vector3f n   = (cosI > 0 ? N : -N);
-        float k      = 1 - eta * eta * (1 - cosI * cosI);
-
-        if (k < 0) {
-            // 全反射
-            Vector3f R = (I - 2 * Vector3f::dot(I, n) * n).normalized();
+        // Fresnel 计算
+        float F = fresnelSchlick(cosI, m->getF0()).x(); // 银行fresnelSchlick返回vec3，这里取其 x
+        // 1. 全反射（F=1）或内全反射时
+        if (k < 0.0f) {
+            Vector3f R = reflect(I, n);
             Ray reflRay(P + n * kEpsilon, R);
-            result += weight * RayTrace(scene, reflRay, depth + 1, 0.2 * weight);
+            result += RayTrace(scene, reflRay, depth+1, weight * F);
         } else {
-            // 折射
-            Vector3f T = (eta * I + (eta * cosI - sqrtf(k)) * n).normalized();
+            // 2. 同时有反射和透射
+            Vector3f R = reflect(I, n);
+            Vector3f T = (eta * I + (eta * cosI - std::sqrt(k)) * n).normalized();
+
+            Ray reflRay(P + n * kEpsilon, R);
             Ray refrRay(P - n * kEpsilon, T);
-            result += weight * RayTrace(scene, refrRay, depth + 1, 0.2 * weight);
+
+            // 混合两者
+            result += F     * RayTrace(scene, reflRay, depth+1, weight * F)
+                    + (1-F) * RayTrace(scene, refrRay, depth+1, weight * (1-F));
         }
-    }
+}
 
     return result;
 }
