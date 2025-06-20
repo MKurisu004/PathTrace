@@ -17,6 +17,45 @@ inline static Vector3f toWorld(const Vector3f &local, const Vector3f &N) {
     return (local.x() * T + local.y() * B + local.z() * N).normalized();
 }
 
+inline static Vector3f uniformHemisphere(const Vector3f &N, float &pdf) {
+    // 1) 生成两个[0,1)的均匀随机数
+    float u1 = rnd();  
+    float u2 = rnd();
+
+    // 2) φ ∈ [0, 2π), cosθ ∈ [0,1)
+    float phi = 2.0f * M_PI * u1;
+    float cosTheta = u2;            // 直接均匀取 cosθ
+    float sinTheta = std::sqrt(1 - cosTheta * cosTheta);
+
+    // 3) 在局部坐标系(顶点朝上Z)下的方向
+    float x = sinTheta * std::cos(phi);
+    float y = sinTheta * std::sin(phi);
+    float z = cosTheta;
+    Vector3f dirLocal(x, y, z);
+
+    // 4) 构建一个从局部(Z轴)到世界(N)的正交基，把 dirLocal 转到世界空间
+    Vector3f tangent, bitangent;
+    // 寻找任意一个与 N 不共线的向量
+    if (std::fabs(N.x()) > std::fabs(N.y()))
+        tangent = Vector3f(N.z(), 0, -N.x()).normalized();
+    else
+        tangent = Vector3f(0, N.z(), -N.y()).normalized();
+    bitangent = Vector3f::cross(tangent, N);
+
+    Vector3f dirWorld = 
+        dirLocal.x() * tangent +
+        dirLocal.y() * bitangent +
+        dirLocal.z() * N;
+    dirWorld.normalize();
+
+    // 5) 这个分布在半球上的 pdf 是 1 / (2π)
+    pdf = 1.0f / (2.0f * M_PI);
+    return dirWorld;
+}
+
+
+
+// cos weighted 加权采样
 inline Vector3f diffuse(const Vector3f &I, const Vector3f &N){
     // 随机采样两个均匀分布的随机数
     float r1 = rnd();  // ∈ [0, 1]

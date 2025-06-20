@@ -18,7 +18,7 @@ case "$MODE" in
     ;;
   PT)
     SCENE=testcases/PT_BASIC.txt
-    OUT=output/PT_BASIC.bmp
+    OUT=output/PT_COS.bmp
     ;;
   NEE)
     SCENE=testcases/PT_BASIC.txt
@@ -32,8 +32,16 @@ case "$MODE" in
     SCENE=testcases/PT_CTMat.txt
     OUT=output/PT_CTMat.bmp
     ;;
+  BSC)
+    SCENE=testcases/PT_BASIC.txt
+    OUT=output/PT_BASIC.bmp
+    ;;
+  FRE)
+    SCENE=testcases/PT_FRE.txt
+    OUT=output/PT_FRE.bmp
+    ;;
   *)
-    echo "Unknown mode '$MODE'. Valid are RT, PT, NEE, MIS, CT."
+    echo "Unknown mode '$MODE'. Valid are RT, PT, NEE, MIS, CT, BSC, FRE."
     exit 1
     ;;
 esac

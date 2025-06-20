@@ -323,3 +323,149 @@ inline Vector3f PathTraceMIS(const SceneParser &scene, Ray ray, int depth){
     }
     return L_dir + L_indir * rrFactor;
 }
+
+
+// 平凡PT实现
+
+inline Vector3f PathTraceBasic(const SceneParser &scene, Ray ray, int depth){ 
+    
+    // Russian Roulette
+    double rrFactor = 1.0;
+    if(depth > MAX_DEPTH){
+        if (rnd() <= rrStopProb){
+            return Vector3f(0, 0, 0); 
+        }
+        rrFactor = 1.0 / (1.0 - rrStopProb);
+    }
+
+    Hit hit;
+    bool isect = scene.getGroup()->intersect(ray, hit, kEpsilon);
+    if (!isect) {
+        return scene.getBackgroundColor();
+    } 
+
+    // get hit information
+    Material *m = hit.getMaterial();
+    Vector3f N = hit.getNormal().normalized();
+    Vector3f I = ray.getDirection().normalized();
+    Vector3f P = ray.pointAtParameter(hit.getT());
+    Vector3f matType = m->getType();
+    Vector3f emission = m->getEmission();
+    Vector3f color = m->getColor();
+    float alpha = m->getAlpha();
+    Vector3f F0 = m->getF0();
+
+    if(emission != Vector3f::ZERO) return emission;
+
+    if (matType.x() == 1){
+        // Diffuse material
+        float pdf;
+        Vector3f newDir = uniformHemisphere(N, pdf);
+        Vector3f newOrigin = P + N * kEpsilon;
+        Ray newRay(newOrigin, newDir);
+        Vector3f brdf = color * (1.0f / M_PI);
+        float cosTheta = std::max(0.0f, Vector3f::dot(N, newDir));
+        Vector3f Li = PathTraceBasic(scene, newRay, depth + 1);
+        return (brdf * Li * cosTheta / pdf) * rrFactor;
+    } else if (matType.y() == 1){
+        // Specular material
+        Vector3f newDir = reflect(I, N);
+        Vector3f newOrigin = P + N * kEpsilon;
+        Ray newRay(newOrigin, newDir);
+        return color * PathTraceBasic(scene,newRay, depth + 1) * rrFactor;
+    } else if (matType.z() == 1){
+        // Refractive material
+        float refractiveIndex = m->getRefractiveIndex();
+        Vector3f newDir = refract(I, N, refractiveIndex);
+        Vector3f newOrigin = P + N * kEpsilon;
+        Ray newRay(newOrigin, newDir);
+        return color * PathTraceBasic(scene, newRay, depth + 1) * rrFactor;
+    } else {
+        return Vector3f(0,0,0);
+    }
+}
+
+inline Vector3f PathTraceFre(const SceneParser &scene, Ray ray, int depth){ 
+    
+    // Russian Roulette
+    double rrFactor = 1.0;
+    if(depth > MAX_DEPTH){
+        if (rnd() <= rrStopProb){
+            return Vector3f(0, 0, 0); 
+        }
+        rrFactor = 1.0 / (1.0 - rrStopProb);
+    }
+
+    Hit hit;
+    bool isect = scene.getGroup()->intersect(ray, hit, kEpsilon);
+    if (!isect) {
+        return scene.getBackgroundColor();
+    } 
+
+    // get hit information
+    Material *m = hit.getMaterial();
+    Vector3f N = hit.getNormal().normalized();
+    Vector3f I = ray.getDirection().normalized();
+    Vector3f P = ray.pointAtParameter(hit.getT());
+    Vector3f matType = m->getType();
+    Vector3f emission = m->getEmission();
+    Vector3f color = m->getColor();
+    float alpha = m->getAlpha();
+    Vector3f F0 = m->getF0();
+
+    if(emission != Vector3f::ZERO) return emission;
+
+    if (matType.x() == 1){
+        // Diffuse material
+        Vector3f newDir = diffuse(I, N);
+        Vector3f newOrigin = P + N * kEpsilon;
+        Ray newRay(newOrigin, newDir);
+        return color * PathTraceFre(scene, newRay, depth + 1) * rrFactor;
+    } else if (matType.y() == 1){
+        // Specular material
+        Vector3f newDir = reflect(I, N);
+        Vector3f newOrigin = P + N * kEpsilon;
+        Ray newRay(newOrigin, newDir);
+        return color * PathTraceFre(scene,newRay, depth + 1) * rrFactor;
+    } else if (matType.z() == 1){
+        // Refractive material with Fresnel
+        float ior = m->getRefractiveIndex();  // 折射率
+        // 1) 计算入射角余弦
+        float cosi = (std::clamp(Vector3f::dot(I, N), -1.0f, 1.0f));
+        bool outside = (cosi < 0.0f);
+        float etai = 1.0f, etat = ior;
+        Vector3f n = N;
+        if (outside) {
+            // 射线从介质里面射到空气，翻转法线
+            std::swap(etai, etat);
+            n = -N;
+            cosi = -cosi;  // 取正值
+        }
+
+
+        float R0 = (etai - etat) / (etai + etat);
+        R0 = R0 * R0;
+        float Fr       = R0 + (1.0f - R0) * std::pow(1.0f - cosi, 5.0f);
+
+
+        // 4) 全反射检测（k<0 即全反射）
+        float eta = etai / etat;
+        float k   = 1.0f - eta * eta * (1.0f - cosi * cosi);
+        bool  tir = (k < 0.0f);
+
+        // 5) 随机选择反射或折射
+        float u = rnd();
+        bool doReflect = tir || (u < Fr);
+
+
+        Vector3f newDir = doReflect ? reflect(I, n) : refract(I, n, ior);
+        Vector3f bias   = (doReflect ? n : -n) * kEpsilon;
+        Vector3f newOrigin = P + bias;
+        Ray     newRay(newOrigin, newDir);
+        // 为了保持能量守恒，需要除以采样概率
+        float pdf = tir ? 1.0f : (doReflect ? Fr : (1.0f - Fr));
+        return color * PathTraceFre(scene, newRay, depth + 1) * rrFactor / pdf;
+    } else {
+        return Vector3f(0,0,0);
+    }
+}

@@ -329,9 +329,7 @@ Material *SceneParser::parseMaterial() {
             refractiveIndex = readFloat();
         } else if (strcmp(token, "R0") == 0){
             R0 = readFloat();
-        }
-         else if (strcmp(token, "texture") == 0) {
-            // Optional: read in texture and draw it.
+        } else if (strcmp(token, "texture") == 0) {
             getToken(filename);
         } else {
             assert (!strcmp(token, "}"));

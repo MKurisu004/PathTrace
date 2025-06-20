@@ -73,6 +73,8 @@ int main(int argc, char *argv[]) {
                     else if (mode == "NEE") finalColor += PathTraceNEE(sceneParser, camRay, 0);
                     else if (mode == "MIS") finalColor += PathTraceMIS(sceneParser, camRay, 0);
                     else if (mode == "CT")  finalColor += PathTrace(sceneParser, camRay, 0);
+                    else if (mode == "BSC") finalColor += PathTraceBasic(sceneParser, camRay, 0);
+                    else if (mode == "FRE") finalColor += PathTraceFre(sceneParser, camRay, 0);
                 }
                 image.SetPixel(x, y, finalColor / iterations);
             

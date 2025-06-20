@@ -10,8 +10,8 @@ bool Mesh::intersect(const Ray &r, Hit &h, float tmin) {
 
     // Optional: Change this brute force method into a faster one.
     bool result = false;
-    for (int triId = 0; triId < (int) t.size(); ++triId) {
-        TriangleIndex& triIndex = t[triId];
+    for (int triId = 0; triId < (int) vIndex.size(); ++triId) {
+        TriangleIndex& triIndex = vIndex[triId];
         Triangle triangle(v[triIndex[0]],
                           v[triIndex[1]], v[triIndex[2]], material);
         triangle.normal = n[triId];
@@ -63,14 +63,14 @@ Mesh::Mesh(const char *filename, Material *material) : Object3D(material) {
                     facess >> trig[ii] >> texID;
                     trig[ii]--;
                 }
-                t.push_back(trig);
+                vIndex.push_back(trig);
             } else {
                 TriangleIndex trig;
                 for (int ii = 0; ii < 3; ii++) {
                     ss >> trig[ii];
                     trig[ii]--;
                 }
-                t.push_back(trig);
+                vIndex.push_back(trig);
             }
         } else if (tok == texTok) {
             Vector2f texcoord;
@@ -84,9 +84,9 @@ Mesh::Mesh(const char *filename, Material *material) : Object3D(material) {
 }
 
 void Mesh::computeNormal() {
-    n.resize(t.size());
-    for (int triId = 0; triId < (int) t.size(); ++triId) {
-        TriangleIndex& triIndex = t[triId];
+    n.resize(vIndex.size());
+    for (int triId = 0; triId < (int) vIndex.size(); ++triId) {
+        TriangleIndex& triIndex = vIndex[triId];
         Vector3f a = v[triIndex[1]] - v[triIndex[0]];
         Vector3f b = v[triIndex[2]] - v[triIndex[0]];
         b = Vector3f::cross(a, b);

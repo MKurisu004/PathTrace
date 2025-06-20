@@ -8,6 +8,7 @@
 #include "hit.hpp"
 #include "random_utils.hpp"
 #include "ray_utils.hpp"
+#include "texture.hpp"
 
 #include <iostream>
 
@@ -17,10 +18,11 @@ public:
 
     explicit Material(const Vector3f &c, const Vector3f &s_color = Vector3f::ZERO, float s = 0, 
         const Vector3f &emission = Vector3f::ZERO, float alpha = 0, const Vector3f &type_ = Vector3f(1, 0, 0), 
-        float refractiveIndex_ = 1.0f, float R0 = 0.0f) : 
+        float refractiveIndex_ = 1.0f, float R0 = 0.0f, const char *filename = "") : 
             color(c), specularColor(s_color), shininess(s), emission(emission), alpha(alpha), type(type_), 
-            refractiveIndex(refractiveIndex_), R0(R0){
-
+            refractiveIndex(refractiveIndex_), R0(R0), texture(filename){
+                if(std::strcmp(filename, "") != 0) hasTexture = true;
+                else hasTexture = true;
     }
 
     virtual ~Material() = default;
@@ -174,6 +176,8 @@ protected:
     float alpha;                // 用于 Cook-Torrance 模型的粗糙度
     Vector3f type;              // 材质类型
     float R0;                   // 正入射反射系数
+    Texture texture;
+    bool hasTexture;
 
     float relu(float x){
         return std::max((float)0, x);
