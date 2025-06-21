@@ -4,8 +4,8 @@
 MODE=${1:-PT}
 
 # CMake 构建
-CC=/opt/homebrew/opt/llvm/bin/clang \
-CXX=/opt/homebrew/opt/llvm/bin/clang++ \
+CC=clang
+CXX=clang++
 cmake -B build
 cmake --build build
 
