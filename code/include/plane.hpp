@@ -40,6 +40,10 @@ public:
         return Vector3f::ZERO;
     }
 
+    int getType() const override {
+        return 5;
+    }
+
 protected:
     Vector3f normal;
     float d;

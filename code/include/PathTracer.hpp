@@ -13,7 +13,7 @@
 #include <cmath>
 #include <iostream>
 
-
+// Path Trace with cos weighted
 inline Vector3f PathTrace(const SceneParser &scene, Ray ray, int depth){ 
     
     // Russian Roulette
@@ -35,6 +35,9 @@ inline Vector3f PathTrace(const SceneParser &scene, Ray ray, int depth){
     Material *m = hit.getMaterial();
     Vector3f N = hit.getNormal().normalized();
     Vector3f I = ray.getDirection().normalized();
+    if (Vector3f::dot(N, I) > 0) {
+        N = -N;
+    }
     Vector3f P = ray.pointAtParameter(hit.getT());
     Vector3f matType = m->getType();
     Vector3f emission = m->getEmission();
@@ -78,8 +81,6 @@ inline Vector3f PathTrace(const SceneParser &scene, Ray ray, int depth){
         float D = 0;
         float G = 0;
         Vector3f F = Vector3f::ZERO;
-
-        
 
         if (r < kd) {
             newDir = diffuse(I, N);
@@ -125,8 +126,6 @@ inline Vector3f PathTrace(const SceneParser &scene, Ray ray, int depth){
 }
 
 inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
-    // 光能守恒权重
-    float weight = (depth == 0) ? 0.5f : 1.0f;
 
     // 获得交点信息
     Hit hit;
@@ -137,6 +136,7 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
     Material *m = hit.getMaterial();
     Vector3f N = hit.getNormal().normalized();
     Vector3f I = ray.getDirection().normalized();
+    if (Vector3f::dot(N, I) > 0) N = -N;    // 确保法向量和入射光在同一半空间内
     Vector3f P = ray.pointAtParameter(hit.getT());
     Vector3f matType = m->getType();
     Vector3f emission = m->getEmission();    
@@ -144,19 +144,22 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
     float alpha = m->getAlpha();
     Vector3f F0 = m->getF0();
 
+    Object3D *shaded = hit.getObject();  
+
     if(emission != Vector3f::ZERO) return emission;
 
     // 计算光源直接光照项 
     Vector3f L_dir(0, 0, 0);
+
     for (int ei = 0; ei < scene.getNumEmissiveObjects(); ++ei) {
-        if(matType != Vector3f(1, 0, 0)) continue;
+        if (m->getType().x() < 0.5f) continue;   
         Object3D *obj = scene.getEmissiveObject(ei);
-        Material *mLe = obj->getMaterial();
         Vector3f wi, xN;
         float pdfA = 0.0f;
 
         // 对光源采样，得到光源上的采样点 x 
         Vector3f x = obj->sampleDirect(P, wi, pdfA, xN);
+
 
         Vector3f offset = x - P;
         float dist2 = offset.squaredLength();
@@ -164,25 +167,25 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
 
         if (pdfA <= FLOAT_EPSILON) continue;
 
+
         // 检测阴影
         Ray shadow(P + N * kEpsilon, wi);
         Hit shadowHit;
-        if (scene.getGroup()->intersect(shadow, shadowHit, kEpsilon) && shadowHit.getT() < dist)
-            continue;
-
+        if (scene.getGroup()->intersect(shadow, shadowHit, kEpsilon)){
+            Object3D *shadowHitObject = shadowHit.getObject();
+            Material *HitObjectMaterial =  shadowHitObject->getMaterial();
+            Vector3f HitEmission = HitObjectMaterial->getEmission();
+            if(HitEmission == Vector3f::ZERO) continue;
+        }
 
         float cosP = std::max(0.0f, Vector3f::dot(N, wi));
         float cosX = std::max(0.0f, Vector3f::dot(xN, -wi));
-        
         Vector3f Li = obj->getEmission();
         Vector3f wo = -I;
         Vector3f fr = m->evalNeeBRDF(wo, wi, N);
 
-        Vector3f res = Li * fr * cosP * cosX / (dist2 * pdfA);
-
         // 计算直接光照
-        L_dir += res;
-        Object3D *shaded = hit.getObject();  
+        L_dir += Li * fr * cosP * cosX / (dist2 * pdfA);
     }
 
     // Russian Roulette
@@ -203,29 +206,39 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
         // 漫反射
         newDir = diffuse(I, N);
         Ray    newRay(newOrigin, newDir);
-        L_indir = weight * color * PathTraceNEE(scene, newRay, depth+1) ;
+        Hit    h2;
+        if (scene.getGroup()->intersect(newRay, h2, kEpsilon)) {
+            Object3D *o2 = h2.getObject();
+            if (o2->getEmission() != Vector3f::ZERO) {
+                // 间接光照命中光源，舍弃
+                return L_dir;
+            } else {
+                // 否则正常递归，把间接贡献累加上去
+                L_indir = color * PathTraceNEE(scene, newRay, depth+1);
+                
+            }
+        }
+        
     } else if (matType.y() == 1) {
         // 镜面反射
         newDir = reflect(I, N);
         Ray newRay(newOrigin, newDir);
-        L_indir = weight * color * PathTraceNEE(scene, newRay, depth+1) ;
+        L_indir = color * PathTraceNEE(scene, newRay, depth + 1);
     } else if (matType.z() == 1) {
         // 折射
         newDir = refract(I, N, m->getRefractiveIndex());
         Ray newRay(newOrigin, newDir);
-        L_indir = weight * color * PathTraceNEE(scene, newRay, depth+1) ;
+        L_indir = color * PathTraceNEE(scene, newRay, depth + 1);
     } else {
         // 其他类型，直接跳过
         L_indir = 0;
     }
+
     return L_dir + L_indir * rrFactor;
 }
 
 
 inline Vector3f PathTraceMIS(const SceneParser &scene, Ray ray, int depth){
-
-    // 光能守恒权重
-    float weight = (depth == 0) ? 0.5f : 1.0f;
 
     // 获取交点信息
     Hit hit;
@@ -236,6 +249,7 @@ inline Vector3f PathTraceMIS(const SceneParser &scene, Ray ray, int depth){
     Material *m = hit.getMaterial();
     Vector3f N = hit.getNormal().normalized();
     Vector3f I = ray.getDirection().normalized();
+    if (Vector3f::dot(N, I) > 0) N = -N;    // 确保法向量和入射光在同一半空间内
     Vector3f P = ray.pointAtParameter(hit.getT());
     Vector3f matType = m->getType();
     Vector3f emission = m->getEmission();
@@ -249,6 +263,9 @@ inline Vector3f PathTraceMIS(const SceneParser &scene, Ray ray, int depth){
     // 计算光源直接光照项
     Vector3f L_dir(0, 0, 0);
     for (int ei = 0; ei < scene.getNumEmissiveObjects(); ++ei) {
+        if (m->getType().x() < 0.5f) continue;   
+
+        // 策略一，对光源采样
         Object3D *obj = scene.getEmissiveObject(ei);
         Vector3f wi, xN;
         float pdfA_li = 0.0f;
@@ -266,26 +283,56 @@ inline Vector3f PathTraceMIS(const SceneParser &scene, Ray ray, int depth){
         // 检测阴影
         Ray shadow(P + N * kEpsilon, wi);
         Hit shadowHit;
-        if (scene.getGroup()->intersect(shadow, shadowHit, kEpsilon) && shadowHit.getT() < dist)
-            continue;
-
+        if (scene.getGroup()->intersect(shadow, shadowHit, kEpsilon)){
+            Object3D *shadowHitObject = shadowHit.getObject();
+            Material *HitObjectMaterial =  shadowHitObject->getMaterial();
+            Vector3f HitEmission = HitObjectMaterial->getEmission();
+            if(HitEmission == Vector3f::ZERO) continue;
+        }
         float cosP = std::max(0.0f, Vector3f::dot(N, wi));
         float cosX = std::max(0.0f, Vector3f::dot(xN, -wi));
-        Vector3f Le = obj->getEmission();
+        Vector3f Li = obj->getEmission();
         Vector3f wo = -I;
         Vector3f fr = m->evalNeeBRDF(wo, wi, N);
 
+        // 该策略下的能量和pdf
+        Vector3f L_i =  Li * fr * cosP * cosX / (dist2 * pdfA_li);
         float pdfA = pdfA_li * dist2 / std::max(1e-6f, cosX);
 
-        float pdfB = m->pdfBsdf(wo, wi, N);
+        // 策略二，均匀球面采样（只考虑命中光源）
+        float pdfB;
+        Vector3f wi_b = uniformHemisphere(N, pdfB);
+        Vector3f fr_b   = m->evalNeeBRDF(wo, wi_b, N);
+        float   cosP_b = std::max(0.0f, Vector3f::dot(N, wi_b));
+        Vector3f L_b = Vector3f::ZERO;
 
+        // 检测是否命中光源
+        if (pdfB > FLOAT_EPSILON && fr_b.length() > 0.0f && cosP_b > 0.0f) {
+            Ray   shadowB(P + N * kEpsilon, wi_b);
+            Hit   hitB;
+            if (scene.getGroup()->intersect(shadowB, hitB, kEpsilon)) {
+                Object3D *hitObj = hitB.getObject();
+                Vector3f Le_b = hitObj->getEmission();
+                
+                // 命中光源，则本次有效，计算L_b
+                if (Le_b != Vector3f::ZERO) {
+                    L_b = Le_b * fr_b * cosP_b / pdfB; 
+                }
+
+                // 未命中光源，无效，权重赋零
+                else {
+                    L_b = Vector3f::ZERO;
+                    pdfB = 0.0;
+                }
+            }
+        }
+
+        // 计算两种策略的权重，确保能量无偏
         float wA = pdfA / (pdfA + pdfB + 1e-12f);
+        float wB = pdfB / (pdfA + pdfB + 1e-12f);
 
-
-
-        // Monte Carlo 方法计算直接光照, 存储在向量中
-        Vector3f L_i =  Le * fr * cosP * cosX / (dist2 * pdfA_li);
-        L_dir += weight * wA * L_i;
+        // 计算直接光照项
+        L_dir += wA * L_i + wB * L_b;
     }
 
     // Russian Roulette
@@ -306,17 +353,28 @@ inline Vector3f PathTraceMIS(const SceneParser &scene, Ray ray, int depth){
         // 漫反射
         newDir = diffuse(I, N);
         Ray    newRay(newOrigin, newDir);
-        L_indir = weight * color * PathTraceNEE(scene, newRay, depth+1) ;
+        Hit    h2;
+        if (scene.getGroup()->intersect(newRay, h2, kEpsilon)) {
+            Object3D *o2 = h2.getObject();
+            if (o2->getEmission() != Vector3f::ZERO) {
+                // 间接光照命中光源，舍弃
+                return L_dir;
+            } else {
+                // 否则正常递归，把间接贡献累加上去
+                L_indir = color * PathTraceNEE(scene, newRay, depth+1);
+                
+            }
+        }
     } else if (matType.y() == 1) {
         // 镜面反射
         newDir = reflect(I, N);
         Ray newRay(newOrigin, newDir);
-        L_indir = weight * color * PathTraceNEE(scene, newRay, depth+1) ;
+        L_indir = color * PathTraceMIS(scene, newRay, depth+1) ;
     } else if (matType.z() == 1) {
         // 折射
         newDir = refract(I, N, m->getRefractiveIndex());
         Ray newRay(newOrigin, newDir);
-        L_indir = weight * color * PathTraceNEE(scene, newRay, depth+1) ;
+        L_indir = color * PathTraceMIS(scene, newRay, depth+1) ;
     } else {
         // 其他类型，直接跳过
         L_indir = 0;
@@ -430,30 +488,32 @@ inline Vector3f PathTraceFre(const SceneParser &scene, Ray ray, int depth){
     } else if (matType.z() == 1){
         // Refractive material with Fresnel
         float ior = m->getRefractiveIndex();  // 折射率
-        // 1) 计算入射角余弦
+        // 计算入射角余弦
         float cosi = (std::clamp(Vector3f::dot(I, N), -1.0f, 1.0f));
-        bool outside = (cosi < 0.0f);
-        float etai = 1.0f, etat = ior;
+        bool MatToAir = (cosi > 0.0f);
+        float eta_i = 1.0f, eta_t = ior;
         Vector3f n = N;
-        if (outside) {
+        if (MatToAir) {
             // 射线从介质里面射到空气，翻转法线
-            std::swap(etai, etat);
+            std::swap(eta_i, eta_t);
             n = -N;
-            cosi = -cosi;  // 取正值
+            cosi = -cosi;  // 保持负值
         }
 
+        float cosTheta = (cosi<0) ? -cosi : cosi;
 
-        float R0 = (etai - etat) / (etai + etat);
+
+        float R0 = (eta_i - eta_t) / (eta_i + eta_t);
         R0 = R0 * R0;
-        float Fr       = R0 + (1.0f - R0) * std::pow(1.0f - cosi, 5.0f);
+        float Fr       = R0 + (1.0f - R0) * std::pow(1.0f - cosTheta, 5.0f);
 
 
-        // 4) 全反射检测（k<0 即全反射）
-        float eta = etai / etat;
+        // 检测全反射
+        float eta = eta_i / eta_t;
         float k   = 1.0f - eta * eta * (1.0f - cosi * cosi);
         bool  tir = (k < 0.0f);
 
-        // 5) 随机选择反射或折射
+        // 随机选择反射或折射
         float u = rnd();
         bool doReflect = tir || (u < Fr);
 
@@ -462,8 +522,10 @@ inline Vector3f PathTraceFre(const SceneParser &scene, Ray ray, int depth){
         Vector3f bias   = (doReflect ? n : -n) * kEpsilon;
         Vector3f newOrigin = P + bias;
         Ray     newRay(newOrigin, newDir);
-        // 为了保持能量守恒，需要除以采样概率
+
+        // 保持能量守恒
         float pdf = tir ? 1.0f : (doReflect ? Fr : (1.0f - Fr));
+
         return color * PathTraceFre(scene, newRay, depth + 1) * rrFactor / pdf;
     } else {
         return Vector3f(0,0,0);

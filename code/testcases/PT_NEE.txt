@@ -16,7 +16,7 @@ Background {
 }
 
 Materials {
-    numMaterials 14
+    numMaterials 12
     Material {
         color    1 0 0
         type            1 0 0
@@ -70,7 +70,7 @@ Materials {
 
     Material {
         color    1 0 0
-        emission 60 60 60
+        emission 50 50 50
         type            1 0 0
     }
 
@@ -80,23 +80,11 @@ Materials {
         type            1 0 0
     }
 
-    Material {
-        color 0.9 0.95 1.0
-        type  0 0 1
-        refractiveIndex 1.33
-    }
-
-    Material {
-        color 1.0 1.0 1.0
-        type  0 0 1
-        refractiveIndex 1.5
-    }
-
 
 }
 
 Group {
-    numObjects   8
+    numObjects   9
 
     MaterialIndex 10
     Rectangle {
@@ -107,17 +95,27 @@ Group {
         LV 0.5
     }
 
-    MaterialIndex 13
-    Sphere {
-        center -1.25 -2 0
-        radius 1.0
+    MaterialIndex 11
+    Rectangle {
+        origin 0 0 7
+        U 1 0 0
+        V 0 1 0
+        LU 0.5
+        LV 0.5
     }
 
-    MaterialIndex 12
+    MaterialIndex 1
     Sphere {
-        center 1.25 -2 0
-        radius 1.0
+        center    1.5 -2.25 0
+        radius    0.75
     }
+
+    MaterialIndex 2
+    Sphere {
+        center   -1.5 1.5 0
+        radius    0.75
+    }
+
 
 
     MaterialIndex 3

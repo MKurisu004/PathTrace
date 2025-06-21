@@ -61,8 +61,8 @@ int main(int argc, char *argv[]) {
         #pragma omp for schedule(dynamic,1)
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
-                Vector3f finalColor(0,0,0);
 
+                Vector3f finalColor(0,0,0);
                 int iterations = (mode == "RT") ? RT_ITERATIONS : PT_ITERATIONS;
 
                 
@@ -70,7 +70,10 @@ int main(int argc, char *argv[]) {
                     Ray camRay = camera->generateRay(Vector2f(x + rnd(), y + rnd()));
                     if (mode == "RT")       finalColor += RayTrace(sceneParser, camRay, 0, 1.0f);
                     else if (mode == "PT")  finalColor += PathTrace(sceneParser, camRay, 0);
-                    else if (mode == "NEE") finalColor += PathTraceNEE(sceneParser, camRay, 0);
+                    else if (mode == "NEE") {
+                        finalColor += PathTraceNEE(sceneParser, camRay, 0);
+                        
+                    }
                     else if (mode == "MIS") finalColor += PathTraceMIS(sceneParser, camRay, 0);
                     else if (mode == "CT")  finalColor += PathTrace(sceneParser, camRay, 0);
                     else if (mode == "BSC") finalColor += PathTraceBasic(sceneParser, camRay, 0);
@@ -89,6 +92,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    
     
     std::cout << "\rProgress: 100%   " << std::endl;
 

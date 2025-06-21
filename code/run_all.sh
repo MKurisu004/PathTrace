@@ -21,7 +21,7 @@ case "$MODE" in
     OUT=output/PT_COS.bmp
     ;;
   NEE)
-    SCENE=testcases/PT_BASIC.txt
+    SCENE=testcases/PT_NEE.txt
     OUT=output/PT_NEE.bmp
     ;;
   MIS)
@@ -33,7 +33,7 @@ case "$MODE" in
     OUT=output/PT_CTMat.bmp
     ;;
   BSC)
-    SCENE=testcases/PT_BASIC.txt
+    SCENE=testcases/PT_NEE.txt
     OUT=output/PT_BASIC.bmp
     ;;
   FRE)

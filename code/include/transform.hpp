@@ -41,6 +41,10 @@ public:
         return Vector3f::ZERO;
     }
 
+    int getType() const override {
+        return 3;
+    }
+
 protected:
     Object3D *o; //un-transformed object
     Matrix4f transform;

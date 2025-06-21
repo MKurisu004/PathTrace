@@ -1,5 +1,6 @@
 #pragma once
 #include "object3d.hpp"
+#include <omp.h>
 #include <vecmath.h>
 #include "random_utils.hpp" // for rnd()
 
@@ -35,11 +36,16 @@ public:
         return true;
     }
 
+    int getType() const override {
+        return 2;
+    }
+
     // Sample a point on rectangle for NEE
     Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const override {
         float ru = (rnd() * 2.0f - 1.0f) * LU;
         float rv = (rnd() * 2.0f - 1.0f) * LV;
         Vector3f x = origin + U * ru + V * rv;
+
         
         outDir = (x - p).normalized();
         xNormal = normal;
@@ -48,6 +54,7 @@ public:
         
         // Area PDF
         pdfA = 1.0f / area;
+
         return x;
     }
 

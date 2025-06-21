@@ -40,6 +40,10 @@ public:
         return Vector3f::ZERO;
     }
 
+    int getType() const override {
+        return 6;
+    }
+
 private:
 
     // Normal can be used for light estimation

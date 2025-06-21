@@ -70,6 +70,10 @@ public:
         return x;
     }
 
+    int getType() const override {
+        return 4;
+    }
+
     Vector3f vertices[3];
     Vector3f edge1, edge2;
     Vector3f normal;

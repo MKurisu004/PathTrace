@@ -36,6 +36,10 @@ public:
         return hitObj;
     }
 
+    int getType() const override {
+        return 7;
+    }
+
     void addObject(int index, Object3D *obj) {
         assert(index >= 0 && index < (int)objList.size());
         objList[index] = obj;

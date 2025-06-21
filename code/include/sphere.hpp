@@ -45,6 +45,10 @@ public:
         h.set(t_candidate, material, normal, this);
         return true;
     }
+    
+    int getType() const override {
+        return 1;
+    }
 
     Vector3f sampleDirect(const Vector3f &p, Vector3f &outDir, float &pdfA, Vector3f &xNormal) const override {
         // 1) 在单位球面上做面积采样

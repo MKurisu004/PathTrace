@@ -20,6 +20,8 @@ public:
         this->material = material;
     }
 
+    virtual int getType()  const = 0;
+
     Vector3f getEmission() const{
         if (material) {
             return material->getEmission();
