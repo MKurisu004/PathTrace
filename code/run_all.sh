@@ -17,7 +17,7 @@ case "$MODE" in
     OUT=output/RT_BASIC.bmp
     ;;
   PT)
-    SCENE=testcases/PT_BASIC.txt
+    SCENE=testcases/PT_FRE.txt
     OUT=output/PT_COS.bmp
     ;;
   NEE)

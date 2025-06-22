@@ -15,15 +15,6 @@
 
 // Path Trace with cos weighted
 inline Vector3f PathTrace(const SceneParser &scene, Ray ray, int depth){ 
-    
-    // Russian Roulette
-    double rrFactor = 1.0;
-    if(depth > MAX_DEPTH){
-        if (rnd() <= rrStopProb){
-            return Vector3f(0, 0, 0); 
-        }
-        rrFactor = 1.0 / (1.0 - rrStopProb);
-    }
 
     Hit hit;
     bool isect = scene.getGroup()->intersect(ray, hit, kEpsilon);
@@ -35,9 +26,6 @@ inline Vector3f PathTrace(const SceneParser &scene, Ray ray, int depth){
     Material *m = hit.getMaterial();
     Vector3f N = hit.getNormal().normalized();
     Vector3f I = ray.getDirection().normalized();
-    if (Vector3f::dot(N, I) > 0) {
-        N = -N;
-    }
     Vector3f P = ray.pointAtParameter(hit.getT());
     Vector3f matType = m->getType();
     Vector3f emission = m->getEmission();
@@ -45,25 +33,40 @@ inline Vector3f PathTrace(const SceneParser &scene, Ray ray, int depth){
     float alpha = m->getAlpha();
     Vector3f F0 = m->getF0();
 
-    if(emission != Vector3f::ZERO) return emission;
+    if(emission != Vector3f::ZERO) {
+        if(Vector3f::dot(I, N) < 0) return emission;
+        else return Vector3f::ZERO;
+    }
+
+    if (Vector3f::dot(N, I) > 0 && matType.x() >= 0.5f) return Vector3f::ZERO;    // 确保法向量和入射光在同一半空间内
+
+
+    // Russian Roulette
+    double rrFactor = 1.0;
+    if(depth > MAX_DEPTH){
+        if (rnd() <= rrStopProb){
+            return Vector3f(0, 0, 0); 
+        }
+        rrFactor = 1.0 / (1.0 - rrStopProb);
+    }
+
+    Vector3f newDir;
+    Vector3f newOrigin = P + N * kEpsilon;
 
     if (matType.x() == 1){
         // Diffuse material
-        Vector3f newDir = diffuse(I, N);
-        Vector3f newOrigin = P + N * kEpsilon;
+        newDir = diffuse(I, N);
         Ray newRay(newOrigin, newDir);
         return color * PathTrace(scene, newRay, depth + 1) * rrFactor;
     } else if (matType.y() == 1){
         // Specular material
-        Vector3f newDir = reflect(I, N);
-        Vector3f newOrigin = P + N * kEpsilon;
+        newDir = reflect(I, N);
         Ray newRay(newOrigin, newDir);
         return color * PathTrace(scene,newRay, depth + 1) * rrFactor;
     } else if (matType.z() == 1){
         // Refractive material
         float refractiveIndex = m->getRefractiveIndex();
-        Vector3f newDir = refract(I, N, refractiveIndex);
-        Vector3f newOrigin = P + N * kEpsilon;
+        newDir = refract(I, N, refractiveIndex);
         Ray newRay(newOrigin, newDir);
         return color * PathTrace(scene, newRay, depth + 1) * rrFactor;
     } else if (std::fabs(matType.z()) < 1e-6f){
@@ -146,8 +149,6 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
     int objType = hitObj->getType();
 
     if (Vector3f::dot(N, I) > 0 && matType.x() >= 0.5f) return Vector3f::ZERO;    // 确保法向量和入射光在同一半空间内
-
-    Object3D *shaded = hit.getObject();  
 
     if(emission != Vector3f::ZERO) {
         if(Vector3f::dot(I, N) < 0) return emission;
@@ -232,12 +233,14 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
         // 镜面反射
         newDir = reflect(I, N);
         Ray newRay(newOrigin, newDir);
-        L_indir = color * PathTraceNEE(scene, newRay, depth + 1);
+        Vector3f fr = color;
+        L_indir = fr * PathTraceNEE(scene, newRay, depth + 1);
     } else if (matType.z() == 1) {
         // 折射
         newDir = refract(I, N, m->getRefractiveIndex());
         Ray newRay(newOrigin, newDir);
-        L_indir = color * PathTraceNEE(scene, newRay, depth + 1);
+        Vector3f fr = color;
+        L_indir = fr * PathTraceNEE(scene, newRay, depth + 1);
     } else {
         // 其他类型，直接跳过
         L_indir = 0;
@@ -453,16 +456,6 @@ inline Vector3f PathTraceBasic(const SceneParser &scene, Ray ray, int depth){
 }
 
 inline Vector3f PathTraceFre(const SceneParser &scene, Ray ray, int depth){ 
-    
-    // Russian Roulette
-    double rrFactor = 1.0;
-    if(depth > MAX_DEPTH){
-        if (rnd() <= rrStopProb){
-            return Vector3f(0, 0, 0); 
-        }
-        rrFactor = 1.0 / (1.0 - rrStopProb);
-    }
-
     Hit hit;
     bool isect = scene.getGroup()->intersect(ray, hit, kEpsilon);
     if (!isect) {
@@ -480,18 +473,33 @@ inline Vector3f PathTraceFre(const SceneParser &scene, Ray ray, int depth){
     float alpha = m->getAlpha();
     Vector3f F0 = m->getF0();
 
-    if(emission != Vector3f::ZERO) return emission;
+    if(emission != Vector3f::ZERO) {
+        if(Vector3f::dot(I, N) < 0) return emission;
+        else return Vector3f::ZERO;
+    }
+
+    if (Vector3f::dot(N, I) > 0 && matType.x() >= 0.5f) return Vector3f::ZERO;
+
+    // Russian Roulette
+    double rrFactor = 1.0;
+    if(depth > MAX_DEPTH){
+        if (rnd() <= rrStopProb){
+            return Vector3f(0, 0, 0); 
+        }
+        rrFactor = 1.0 / (1.0 - rrStopProb);
+    }
+
+    Vector3f newDir;
+    Vector3f newOrigin = P + N * kEpsilon;
 
     if (matType.x() == 1){
         // Diffuse material
-        Vector3f newDir = diffuse(I, N);
-        Vector3f newOrigin = P + N * kEpsilon;
+        newDir = diffuse(I, N);
         Ray newRay(newOrigin, newDir);
         return color * PathTraceFre(scene, newRay, depth + 1) * rrFactor;
     } else if (matType.y() == 1){
         // Specular material
-        Vector3f newDir = reflect(I, N);
-        Vector3f newOrigin = P + N * kEpsilon;
+        newDir = reflect(I, N);
         Ray newRay(newOrigin, newDir);
         return color * PathTraceFre(scene,newRay, depth + 1) * rrFactor;
     } else if (matType.z() == 1){
