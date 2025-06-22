@@ -8,7 +8,7 @@ static std::default_random_engine rnd_engine(std::random_device{}());
 
 
 #define MAX_DEPTH 5
-#define PT_ITERATIONS 2000  // Number of iterations for Path Tracing
+#define PT_ITERATIONS 100  // Number of iterations for Path Tracing
 #define RT_ITERATIONS 10 // Number of iterations for Ray Tracing
 const float EPLISON = 1e-5f;
 const float kEpsilon = 1e-4f;

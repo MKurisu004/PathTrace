@@ -16,7 +16,7 @@ Background {
 }
 
 Materials {
-    numMaterials 12
+    numMaterials 13
     Material {
         color    1 0 0
         type            1 0 0
@@ -80,28 +80,35 @@ Materials {
         type            1 0 0
     }
 
+    Material {
+        color 0 0 0
+        type 1 0 0
+    }
+
 
 }
 
 Group {
-    numObjects   12
+    numObjects   13
 
     MaterialIndex 10
     Rectangle {
-        origin 0 2.9 0
+        origin 0 2.999999 0
         U 1 0 0
         V 0 0 1
         LU 0.5
         LV 0.5
+        normal 0 -1 0
     }
 
     MaterialIndex 11
     Rectangle {
-        origin 0 0 7
+        origin 0 0 6.999999
         U 1 0 0
         V 0 1 0
         LU 0.5
         LV 0.5
+        normal 0 0 -1
     }
 
     MaterialIndex 1
@@ -163,6 +170,12 @@ Group {
     Plane {
         normal -1 0 0
         offset -3
+    }
+
+    MaterialIndex 12
+    Plane {
+        normal 0 0 -1
+        offset -7
     }
 
 }

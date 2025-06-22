@@ -469,9 +469,12 @@ Rectangle *SceneParser::parseRectangle() {
     assert (!strcmp(token, "LV"));
     float LV = readFloat();
     getToken(token);
+    assert (!strcmp(token, "normal"));
+    Vector3f normal = readVector3f();
+    getToken(token);
     assert (!strcmp(token, "}"));
     assert (current_material != nullptr);
-    return new Rectangle(origin, U, LU, V, LV, current_material);
+    return new Rectangle(origin, U, LU, V, LV, normal, current_material);
 }
 
 

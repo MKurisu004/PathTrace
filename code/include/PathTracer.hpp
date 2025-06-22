@@ -136,17 +136,23 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
     Material *m = hit.getMaterial();
     Vector3f N = hit.getNormal().normalized();
     Vector3f I = ray.getDirection().normalized();
-    if (Vector3f::dot(N, I) > 0) N = -N;    // 确保法向量和入射光在同一半空间内
     Vector3f P = ray.pointAtParameter(hit.getT());
     Vector3f matType = m->getType();
     Vector3f emission = m->getEmission();    
     Vector3f color = m->getColor();
     float alpha = m->getAlpha();
     Vector3f F0 = m->getF0();
+    Object3D *hitObj = hit.getObject();
+    int objType = hitObj->getType();
+
+    if (Vector3f::dot(N, I) > 0 && matType.x() >= 0.5f) return Vector3f::ZERO;    // 确保法向量和入射光在同一半空间内
 
     Object3D *shaded = hit.getObject();  
 
-    if(emission != Vector3f::ZERO) return emission;
+    if(emission != Vector3f::ZERO) {
+        if(Vector3f::dot(I, N) < 0) return emission;
+        else return Vector3f::ZERO;
+    }
 
     // 计算光源直接光照项 
     Vector3f L_dir(0, 0, 0);
@@ -165,18 +171,22 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
         float dist2 = offset.squaredLength();
         float dist  = std::sqrt(dist2);
 
+        if(Vector3f::dot(offset, xN) >= 0) continue;
+
         if (pdfA <= FLOAT_EPSILON) continue;
 
+        Ray shadow(P, wi);
 
-        // 检测阴影
-        Ray shadow(P + N * kEpsilon, wi);
         Hit shadowHit;
+        shadowHit.set(dist, nullptr, Vector3f::ZERO, nullptr);
         if (scene.getGroup()->intersect(shadow, shadowHit, kEpsilon)){
             Object3D *shadowHitObject = shadowHit.getObject();
             Material *HitObjectMaterial =  shadowHitObject->getMaterial();
             Vector3f HitEmission = HitObjectMaterial->getEmission();
-            if(HitEmission == Vector3f::ZERO) continue;
+            if(shadowHit.getT() < dist) continue;
+            if(objType == 5 && Vector3f::dot(wi, xN) >= 0) continue;
         }
+
 
         float cosP = std::max(0.0f, Vector3f::dot(N, wi));
         float cosX = std::max(0.0f, Vector3f::dot(xN, -wi));
@@ -209,13 +219,12 @@ inline Vector3f PathTraceNEE(const SceneParser &scene, Ray ray, int depth){
         Hit    h2;
         if (scene.getGroup()->intersect(newRay, h2, kEpsilon)) {
             Object3D *o2 = h2.getObject();
+
             if (o2->getEmission() != Vector3f::ZERO) {
                 // 间接光照命中光源，舍弃
                 return L_dir;
             } else {
-                // 否则正常递归，把间接贡献累加上去
                 L_indir = color * PathTraceNEE(scene, newRay, depth+1);
-                
             }
         }
         

@@ -6,10 +6,8 @@
 
 class Rectangle : public Object3D {
 public:
-    Rectangle(const Vector3f &o, const Vector3f &u, float lu, const Vector3f &v, float lv, Material *mat)
-        : Object3D(mat), origin(o), U(u.normalized()), V(v.normalized()), LU(lu), LV(lv) {
-
-        normal = Vector3f::cross(U, V).normalized();
+    Rectangle(const Vector3f &o, const Vector3f &u, float lu, const Vector3f &v, float lv,const Vector3f & normal, Material *mat)
+        : Object3D(mat), origin(o), U(u.normalized()), V(v.normalized()), LU(lu), LV(lv), normal(normal.normalized()) {
         area = (2*LU) * (2*LV) * Vector3f::cross(U, V).normalized().length();
     }
 
@@ -30,8 +28,7 @@ public:
         if (uDist < -LU || uDist > LU || vDist < -LV || vDist > LV)
             return false;
 
-        // Valid hit: choose normal facing the ray
-        Vector3f nHit = denom < 0.0f ? normal : -normal;
+        Vector3f nHit = normal;
         h.set(t, material, nHit, this);
         return true;
     }
@@ -49,8 +46,6 @@ public:
         
         outDir = (x - p).normalized();
         xNormal = normal;
-        if (Vector3f::dot(xNormal, outDir) > 0.0f)
-            xNormal = -xNormal;
         
         // Area PDF
         pdfA = 1.0f / area;

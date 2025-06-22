@@ -37,6 +37,10 @@ public:
         direction = dir.normalized();
     }
 
+    void setOrigin(const Vector3f & ori){
+        origin = ori;
+    }
+
 private:
 
     Vector3f origin;

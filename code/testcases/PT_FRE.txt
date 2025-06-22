@@ -100,11 +100,12 @@ Group {
 
     MaterialIndex 10
     Rectangle {
-        origin 0 2.9 0
+        origin 0 2.999999 0
         U 1 0 0
         V 0 0 1
         LU 0.5
         LV 0.5
+        normal 0 -1 0
     }
 
     MaterialIndex 13
